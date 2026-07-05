@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration</title>
+    <link rel="stylesheet" href="form.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-container">
+        <h1 class="nav-title">Student Management System</h1>
+        <ul class="nav-tabs">
+            <li><a href="form.html" class="nav-link active">Student Registration</a></li>
+            <li><a href="dashboard.html" class="nav-link">Dashboard</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="form-section">
+        <h1>Student Registration</h1>
+        <p class="subtitle">Please fill in your details below.</p>
+
+        <div id="formMessage" class="form-message" style="display:none;"></div>
+
+        <form id="registrationForm" novalidate>
+            <label for="name">Full Name</label>
+            <input type="text" id="name" placeholder="Enter your full name">
+            <small class="field-error" id="nameError"></small>
+
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="Enter your email address">
+            <small class="field-error" id="emailError"></small>
+
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="At least 8 characters">
+            <small class="field-error" id="passwordError"></small>
+
+            <label for="course">Course / Major</label>
+            <input type="text" id="course" placeholder="e.g. Computer Science">
+            <small class="field-error" id="courseError"></small>
+
+            <button type="submit" id="submitButton">Submit</button>
+        </form>
+    </div>
+
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:5000/api';
+
+    const form = document.getElementById('registrationForm');
+    const submitButton = document.getElementById('submitButton');
+    const formMessage = document.getElementById('formMessage');
+
+    const fields = {
+        name: document.getElementById('name'),
+        email: document.getElementById('email'),
+        password: document.getElementById('password'),
+        course: document.getElementById('course'),
+    };
+    const fieldErrors = {
+        name: document.getElementById('nameError'),
+        email: document.getElementById('emailError'),
+        password: document.getElementById('passwordError'),
+        course: document.getElementById('courseError'),
+    };
+
+    function clearFieldErrors() {
+        Object.values(fieldErrors).forEach(el => el.textContent = '');
+        Object.values(fields).forEach(el => el.classList.remove('input-error'));
+    }
+
+    function showFieldError(field, message) {
+        fieldErrors[field].textContent = message;
+        fields[field].classList.add('input-error');
+    }
+
+    function showFormMessage(text, type) {
+        formMessage.textContent = text;
+        formMessage.className = `form-message ${type}`;
+        formMessage.style.display = 'block';
+    }
+
+    function validateClientSide() {
+        clearFieldErrors();
+        let isValid = true;
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+        const name = fields.name.value.trim();
+        const email = fields.email.value.trim();
+        const password = fields.password.value;
+        const course = fields.course.value.trim();
+
+        if (name.length < 2) {
+            showFieldError('name', 'Name must be at least 2 characters.');
+            isValid = false;
+        }
+        if (!emailRegex.test(email)) {
+            showFieldError('email', 'Enter a valid email address.');
+            isValid = false;
+        }
+        if (password.length < 8) {
+            showFieldError('password', 'Password must be at least 8 characters.');
+            isValid = false;
+        }
+        if (course.length < 2) {
+            showFieldError('course', 'Course/Major is required.');
+            isValid = false;
+        }
+
+        return { isValid, name, email, password, course };
+    }
+
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        formMessage.style.display = 'none';
+
+        const { isValid, name, email, password, course } = validateClientSide();
+        if (!isValid) return;
+
+        submitButton.disabled = true;
+        submitButton.textContent = 'Submitting...';
+
+        try {
+            const response = await fetch(`${API_BASE_URL}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password, course }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                const errorText = (data.errors && data.errors.join(' ')) || 'Registration failed. Please try again.';
+                showFormMessage(errorText, 'error');
+                return;
+            }
+
+            showFormMessage('Student registered successfully! Redirecting to dashboard...', 'success');
+            form.reset();
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 1200);
+
+        } catch (err) {
+            console.error('Registration request failed:', err);
+            showFormMessage('Could not reach the server. Is the backend running?', 'error');
+        } finally {
+            submitButton.disabled = false;
+            submitButton.textContent = 'Submit';
+        }
+    });
+</script>
+
+</body>
+</html>

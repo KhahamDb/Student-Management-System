@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="form.css">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-container">
+        <h1 class="nav-title">Student Management System</h1>
+        <ul class="nav-tabs">
+            <li><a href="form.html" class="nav-link">Student Registration</a></li>
+            <li><a href="dashboard.html" class="nav-link active">Dashboard</a></li>
+        </ul>
+    </div>
+</nav>
+
+<div class="container">
+
+    <div class="dashboard-section">
+        <h1>Student Dashboard</h1>
+        <p class="subtitle">Overview of registered students.</p>
+
+        <div id="dashboardMessage" class="form-message" style="display:none;"></div>
+
+        <div class="summary-card">
+            <h3>Total Registrations</h3>
+            <h2 id="totalCount">0</h2>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Course</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="studentTableBody">
+            </tbody>
+        </table>
+
+    </div>
+
+</div>
+
+<script>
+    const API_BASE_URL = 'http://localhost:5000/api';
+
+    const tableBody = document.getElementById('studentTableBody');
+    const totalCount = document.getElementById('totalCount');
+    const dashboardMessage = document.getElementById('dashboardMessage');
+
+    function showMessage(text, type) {
+        dashboardMessage.textContent = text;
+        dashboardMessage.className = `form-message ${type}`;
+        dashboardMessage.style.display = 'block';
+    }
+
+    async function loadStudents() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/students`);
+            const data = await response.json();
+
+            if (!response.ok || !data.success) {
+                showMessage('Could not load students from the server.', 'error');
+                return;
+            }
+
+            const students = data.students;
+            tableBody.innerHTML = '';
+
+            students.forEach((student) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHtml(student.name)}</td>
+                    <td>${escapeHtml(student.email)}</td>
+                    <td>${escapeHtml(student.course)}</td>
+                    <td>
+                        <div class="action-buttons">
+                            <button type="button" class="action-btn delete-btn" data-id="${student.id}">Delete</button>
+                        </div>
+                    </td>`;
+                tableBody.appendChild(row);
+            });
+
+            totalCount.textContent = students.length;
+
+        } catch (err) {
+            console.error('Failed to load students:', err);
+            showMessage('Could not reach the server. Is the backend running?', 'error');
+        }
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str ?? '';
+        return div.innerHTML;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadStudents();
+
+        tableBody.addEventListener('click', async function (event) {
+            const button = event.target.closest('button');
+            if (!button) return;
+
+            if (button.classList.contains('delete-btn')) {
+                const id = button.getAttribute('data-id');
+                const confirmDelete = confirm('Delete this student record?');
+                if (!confirmDelete) return;
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}/students/${id}`, {
+                        method: 'DELETE',
+                    });
+                    const data = await response.json();
+
+                    if (!response.ok || !data.success) {
+                        showMessage('Failed to delete student.', 'error');
+                        return;
+                    }
+
+                    loadStudents();
+                } catch (err) {
+                    console.error('Delete request failed:', err);
+                    showMessage('Could not reach the server.', 'error');
+                }
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
