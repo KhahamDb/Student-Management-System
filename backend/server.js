@@ -10,9 +10,6 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const SALT_ROUNDS = Number(process.env.BCRYPT_SALT_ROUNDS) || 12;
 
-// --- Auto-run schema.sql on startup ---
-// Safe to run every time: schema.sql uses CREATE EXTENSION IF NOT EXISTS
-// and CREATE TABLE IF NOT EXISTS, so it won't touch existing data.
 async function initSchema() {
     const schemaPath = path.join(__dirname, 'schema.sql');
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
@@ -20,7 +17,6 @@ async function initSchema() {
     console.log('Database schema verified/created (students table ready).');
 }
 
-// --- Middleware ---
 app.use(express.json());
 
 const allowedOrigins = (process.env.CORS_ORIGIN || '')
@@ -33,7 +29,6 @@ app.use(cors({
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
 }));
 
-// --- Validation helpers ---
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateRegistrationInput({ name, email, password, course }) {
@@ -55,14 +50,10 @@ function validateRegistrationInput({ name, email, password, course }) {
     return errors;
 }
 
-// --- Routes ---
-
-// Health check
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// Register a new student
 app.post('/api/register', async (req, res) => {
     try {
         const { name, email, password, course } = req.body || {};
@@ -74,8 +65,6 @@ app.post('/api/register', async (req, res) => {
 
         const normalizedEmail = email.trim().toLowerCase();
 
-        // Check for existing email up front for a clean error message
-        // (the DB unique constraint is still the real safety net against races)
         const existing = await pool.query(
             'SELECT id FROM students WHERE email = $1',
             [normalizedEmail]
@@ -101,11 +90,10 @@ app.post('/api/register', async (req, res) => {
         return res.status(201).json({
             success: true,
             message: 'Student registered successfully.',
-            student, // note: password_hash is never returned
+            student,
         });
 
     } catch (err) {
-        // Unique violation race-condition fallback
         if (err.code === '23505') {
             return res.status(409).json({
                 success: false,
@@ -121,7 +109,6 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// List all students (used by the dashboard)
 app.get('/api/students', async (req, res) => {
     try {
         const result = await pool.query(
@@ -136,7 +123,6 @@ app.get('/api/students', async (req, res) => {
     }
 });
 
-// Delete a student
 app.delete('/api/students/:id', async (req, res) => {
     try {
         const { id } = req.params;
